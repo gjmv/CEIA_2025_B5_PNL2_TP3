@@ -53,13 +53,24 @@ class SpecificAgent:
     def run(self, state: AgentState) -> AgentState:
         prompt = ChatPromptTemplate.from_messages([
             (SystemMessagePromptTemplate.from_template("""
-              Eres un bot que responde preguntas sobre documentos proporcionados.\n
-              Usa únicamente el contexto dado para responder.\n
-              Si la pregunta incluye una persona distinta, ignorala.'\n
-              Sé preciso y conciso.\n
-              Incluye el nombre de la persona en la respuesta para que el usuario pueda identificar la información.\n
-              Responde en el mismo idioma que la pregunta.\n\n
-              Contexto: {context}
+**ROL DEL AGENTE:** Eres un **Analista de Currículums (CVs)** altamente especializado y experto en extracción de datos. Tu única función es escanear el contexto de CVs proporcionado y extraer información **exclusivamente** relacionada con la PERSONA_OBJETIVO.
+
+**ENTRADAS CLAVE:**
+1.  **PREGUNTA_USUARIO:** {input}
+2.  **PERSONA_OBJETIVO:** {people_name}
+3.  **CONTEXTO_CVS:** {context}
+
+**DIRECTRICES DE FILTRADO (CRÍTICAS):**
+* **EXCLUSIÓN ESTRICTA:** Ignora y omite **cualquier** información, dato o referencia relacionada con cualquier otra persona mencionada en la PREGUNTA_USUARIO que no sea la **PERSONA_OBJETIVO**.
+* **ENFOQUE:** Concéntrate únicamente en responder la parte de la PREGUNTA_USUARIO que aplica a la **PERSONA_OBJETIVO**, utilizando la información del CONTEXTO_CVS.
+* **Fidelidad:** Mantente estrictamente fiel a los datos extraídos del CONTEXTO_CVS.
+
+**FORMATO DE SALIDA:**
+* La respuesta debe ser directa, profesional y concisa.
+* **NO** incluyas frases como "Según el CV de [Persona X]" o "Ignorando a [Persona Y]". Ve directo a la respuesta.
+* Responde en el mismo idioma de la PREGUNTA_USUARIO.
+
+**RESPUESTA (Solo sobre la PERSONA_OBJETIVO): {people_name}:**
             """)),
             (HumanMessagePromptTemplate.from_template("La pregunta es: {input}")),
         ])
@@ -105,10 +116,27 @@ class Agent:
         """Construye la cadena de prompts para la síntesis de resultados."""
         # Prompt de síntesis
         prompt = ChatPromptTemplate.from_messages([
-            (SystemMessagePromptTemplate.from_template("""Eres un experto en síntesis y presentación de información de currículums (CVs).\n
-               Tu tarea es tomar las 'individual_responses' y combinarlas en una única respuesta final, clara, profesional y bien estructurada.\n
-               Mantente fiel a la información proporcionada. Utiliza encabezados y viñetas para organizar la información de manera legible.\n
-               Responde en el mismo idioma que la pregunta.""")),
+            (SystemMessagePromptTemplate.from_template("""
+                **ROL:** Eres un sintetizador y presentador de información experto, especializado en currículums (CVs).
+
+                **TAREA:** Combina todas las 'individual_responses' proporcionadas en una **única, clara, profesional y bien estructurada** respuesta final. Ignora las referencias sobre información no encontrada.
+
+                **PREGUNTA DEL USUARIO:** 
+                {question}
+
+                **REGLAS CRÍTICAS:**
+                1.  **Fidelidad:** Mantente estrictamente fiel a la información original proporcionada. No añadas ni inventes datos.
+                2.  **Análisis:** Analiza la pregunta, identifica los individuos mencionados y combina las respuestas para cada individuo.
+                3.  **Estructura:** Utiliza **encabezados (Markdown)** y **viñetas** para organizar y presentar la información de manera legible y profesional.
+                4.  **Idioma:** Responde en el mismo idioma que la pregunta del usuario.
+                5.  **Menciona explicitamente a la persona sobre la que estas respondiendo.
+
+                **ENTRADA (individual_responses):**
+                {individual_responses}
+
+                **SALIDA DESEADA:**
+                [La síntesis final estructurada.]            
+            """)),
             (HumanMessagePromptTemplate.from_template("Pregunta: {question}")),
             (HumanMessagePromptTemplate.from_template("Sintetiza y presenta estas respuestas para el usuario:\n\nRespuestas: {individual_responses}")),
         ])
@@ -175,7 +203,7 @@ class Agent:
         if agent is None:
             return state
         result = agent.run(state) 
-        state["responses"].append(result["response"])
+        state["responses"].append(f"Resumen de {person_name}. Información recolectada: {result['response']}.")
         return state
 
     def _should_continue_multi(self, state: AgentState) -> str:
@@ -192,7 +220,7 @@ class Agent:
         print("\n*** Agregador de Resultados (LLM) en ejecución ***")
         
         # Las respuestas individuales recolectadas en el estado
-        responses_to_synthesize = "\n---\n".join(state["responses"])
+        responses_to_synthesize = "\n--------------------------\n".join(state["responses"])
 
         # Llamada al LLM
         try:
@@ -273,7 +301,9 @@ if __name__ == "__main__":
     # Embedding
     embedding_model = HuggingFaceEmbeddings(model_name="all-mpnet-base-v2")
     # Modelo
-    model = ChatOllama(model="llama3:8b")
+    model_name = os.environ.get('MODEL_NAME') or 'llama3:8b'
+    model = ChatOllama(model=model_name)
+    print(f"Modelo seleccionado: {model_name}.")
     # Connect to Pinecone DB
     pc=Pinecone(api_key=PINECONE_API_KEY)
     index = pc.Index(index_name)

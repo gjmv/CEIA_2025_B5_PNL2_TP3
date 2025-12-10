@@ -20,6 +20,7 @@ dependencies = [
     "langchain-pinecone>=0.2.13",
     "llama-index>=0.14.10",
     "pinecone<8.0.0",
+    "pygraphviz>=1.14",
     "pypdf>=6.4.0",
     "python-dotenv>=1.2.1",
     "sentence-transformers>=5.1.2",

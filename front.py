@@ -38,7 +38,7 @@ def main():
     ### EMBEDDINGS
     embedding_model = load_or_create_from_session("embedding_model",  lambda: HuggingFaceEmbeddings(model_name="all-mpnet-base-v2"))
     # Modelo
-    model_name = "llama3:8b"
+    model_name = os.environ.get('MODEL_NAME') or 'llama3:8b'
     model = load_or_create_from_session("model", lambda: ChatOllama(model=model_name))
 
     def create_people_names():
@@ -61,11 +61,11 @@ def main():
 
     # Configurar el título y descripción de la aplicación
     st.title("🤖 Agente CEIA para consultar CVs de personas.")
-    st.markdown("""
-    **¡Bienvenido al chatbot CEIA - PNL2 - TP3!** 
+    st.markdown(f"""
+    **¡Bienvenido al agente CEIA - PNL2 - TP3!** 
     
-    Este chatbot utiliza:
-    - 🔄 **Modelo llama3:8b (local)**: Destacado en tareas de propósito general
+    Este agente utiliza:
+    - 🔄 **Modelo {model_name} (local)**: Instanciado mediante Ollama.
     - ⚙️ **Pinecone**: Almacenamiento de documentos para la búsqueda de respuestas
     - 🚀 **Powered by Ollama**: Integración con modelos locales
     """)
@@ -181,22 +181,19 @@ def main():
         st.markdown("""
         **¿Cómo funciona este agente?**
         
-        1. **Memoria Conversacional durante la sesión**: Utiliza `InMemoryChatMessageHistory` para recordar contexto
-        2. **Templates de Prompts**: Estructura los mensajes de manera consistente
-        3. **Cadenas LLM**: `create_stuff_documents_chain` y `create_retrieval_chain` conectan el modelo con la lógica de conversación y recuperación de documentos
-        4. **Estado de Sesión**: Streamlit mantiene el historial durante la sesión
-        5. **Integración Groq**: Acceso rápido a modelos de lenguaje modernos
+        1. **Templates de Prompts**: Estructura los mensajes de manera consistente.
+        2. **Router**: Extrae la o las personas a las que se refiere el usuario. Implementado mediante un LLM.
+        3. **Agentes**: Creados dinámicamente en función de los individuos disponibles para la conversación.
+        4. **Agregador**: Une la información de los agentes para generar una respuesta coherente.
         
         **Conceptos Clave:**
-        - **System Prompt**: Define la personalidad del chatbot
-        - **Memory Chat**: Conserva el historial de la conversación durante la sesión para mantener la coherencia
-        - **Token Limits**: Gestiona el costo y velocidad de las respuestas
+        - **Integración Ollama**: Acceso rápido a modelos de lenguaje modernos.
+        - **System Prompt**: Define la personalidad del chatbot.
+        - **Token Limits**: Al utilizar modelos locales, no costos asociados al consumo de tokens.
         
         **Arquitectura del Sistema:**
         ```
-        Usuario → Streamlit → LangChain → Groq → LLM → Respuesta
-                     ↓
-               Session State (Memoria)
+        Usuario → Streamlit → LangChain → Ollama → LLM (Router → Agentes → Agregador → Respuesta).
         ```
         """)
     
